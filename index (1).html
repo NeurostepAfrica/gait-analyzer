@@ -1,0 +1,1291 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeuroStep — Patient Management System</title>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+/* ═══════════════════════════════════════════════
+   TOKENS
+═══════════════════════════════════════════════ */
+:root{
+  --bg:#0a0f1e; --surface:#111827; --card:#1a2235; --card2:#1e2a40;
+  --border:rgba(99,179,237,0.15); --border2:rgba(99,179,237,0.28);
+  --accent:#3b82f6; --cyan:#06b6d4; --text:#f0f4ff; --muted:#8899bb;
+  --success:#10b981; --warn:#f59e0b; --danger:#ef4444;
+  --s1:#ef4444; --s2:#f97316; --s3:#eab308; --s4:#84cc16; --s5:#10b981;
+  --r:12px; --rs:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;min-height:100vh;overflow-x:hidden;}
+input,select,textarea{background:var(--surface);border:1px solid var(--border2);color:var(--text);border-radius:var(--rs);padding:.55rem .85rem;font-size:.875rem;font-family:inherit;width:100%;outline:none;transition:border-color .15s;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+input::placeholder,textarea::placeholder{color:var(--muted);}
+select option{background:var(--card);}
+textarea{resize:vertical;min-height:70px;}
+
+/* ═══════════════════════════════════════════════
+   NAV / TABS
+═══════════════════════════════════════════════ */
+nav{display:flex;align-items:center;justify-content:space-between;padding:.875rem 2rem;border-bottom:1px solid var(--border);background:rgba(10,15,30,.97);position:sticky;top:0;z-index:200;backdrop-filter:blur(8px);}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--cyan));display:flex;align-items:center;justify-content:center;font-size:17px;}
+.logo-text{font-size:17px;font-weight:700;letter-spacing:-.3px;}
+.logo-text span{color:var(--cyan);}
+.nav-right{display:flex;align-items:center;gap:.75rem;}
+.nav-badge{font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(59,130,246,.15);color:var(--accent);border:1px solid rgba(59,130,246,.3);}
+
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:57px;z-index:100;}
+.tab{padding:.75rem 1.5rem;font-size:.875rem;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:7px;user-select:none;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-count{font-size:.7rem;background:rgba(59,130,246,.2);color:var(--accent);padding:1px 7px;border-radius:10px;}
+
+.page{display:none;}.page.active{display:block;}
+.container{max-width:1140px;margin:0 auto;padding:1.75rem 1.5rem;}
+
+/* ═══════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════ */
+.btn{padding:.5rem 1.2rem;border-radius:var(--rs);border:1px solid var(--border);background:transparent;color:var(--text);font-size:.875rem;font-weight:500;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;font-family:inherit;}
+.btn:hover{background:rgba(255,255,255,.06);border-color:var(--border2);}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn.primary:hover{background:#2563eb;}
+.btn.success{background:var(--success);border-color:var(--success);color:#fff;}
+.btn.success:hover{background:#059669;}
+.btn.danger{background:transparent;border-color:var(--danger);color:var(--danger);}
+.btn.danger:hover{background:rgba(239,68,68,.1);}
+.btn.cyan{background:var(--cyan);border-color:var(--cyan);color:#fff;}
+.btn.cyan:hover{background:#0891b2;}
+.btn.sm{padding:.35rem .85rem;font-size:.8rem;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ═══════════════════════════════════════════════
+   CARDS / GRIDS
+═══════════════════════════════════════════════ */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.25rem;}
+.card2{background:var(--card2);border:1px solid var(--border);border-radius:var(--r);padding:1.25rem;}
+.section-title{font-size:.72rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:600;margin-bottom:.875rem;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;}
+@media(max-width:900px){.grid-4{grid-template-columns:1fr 1fr;}.grid-3{grid-template-columns:1fr 1fr;}}
+@media(max-width:600px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr;}}
+
+/* ═══════════════════════════════════════════════
+   FORM ELEMENTS
+═══════════════════════════════════════════════ */
+.form-group{display:flex;flex-direction:column;gap:.4rem;}
+.form-label{font-size:.78rem;font-weight:500;color:var(--muted);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;}
+@media(max-width:600px){.form-row,.form-row-3{grid-template-columns:1fr;}}
+.required{color:var(--danger);}
+
+/* ═══════════════════════════════════════════════
+   STAT CARDS
+═══════════════════════════════════════════════ */
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.1rem 1.25rem;display:flex;flex-direction:column;gap:.3rem;}
+.stat-val{font-size:1.9rem;font-weight:800;line-height:1;}
+.stat-label{font-size:.75rem;color:var(--muted);font-weight:500;}
+.stat-sub{font-size:.72rem;color:var(--muted);}
+
+/* ═══════════════════════════════════════════════
+   PATIENT LIST / TABLE
+═══════════════════════════════════════════════ */
+.patient-list{display:flex;flex-direction:column;gap:.6rem;}
+.patient-row{background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:.875rem 1.1rem;display:flex;align-items:center;gap:1rem;cursor:pointer;transition:all .15s;}
+.patient-row:hover{border-color:var(--border2);background:var(--card2);}
+.patient-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex-shrink:0;}
+.patient-info{flex:1;min-width:0;}
+.patient-name{font-weight:600;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.patient-meta{font-size:.75rem;color:var(--muted);margin-top:2px;}
+.patient-badge{font-size:.7rem;padding:2px 9px;border-radius:10px;font-weight:600;white-space:nowrap;}
+.patient-score{font-size:1.1rem;font-weight:800;text-align:right;white-space:nowrap;}
+
+/* ═══════════════════════════════════════════════
+   SESSION CARDS
+═══════════════════════════════════════════════ */
+.session-card{background:var(--card2);border:1px solid var(--border);border-radius:var(--rs);overflow:hidden;margin-bottom:.75rem;}
+.session-header{padding:.875rem 1.1rem;display:flex;align-items:center;gap:1rem;cursor:pointer;transition:background .15s;}
+.session-header:hover{background:rgba(255,255,255,.03);}
+.session-date{font-size:.78rem;color:var(--muted);}
+.session-score-pill{padding:3px 12px;border-radius:20px;font-size:.8rem;font-weight:700;}
+.session-body{padding:1.1rem;border-top:1px solid var(--border);display:none;}
+.session-body.open{display:block;}
+.notes-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:.75rem;font-size:.82rem;line-height:1.6;color:var(--muted);white-space:pre-wrap;}
+
+/* ═══════════════════════════════════════════════
+   SEARCH BAR
+═══════════════════════════════════════════════ */
+.search-bar{position:relative;}
+.search-bar input{padding-left:2.4rem;}
+.search-icon{position:absolute;left:.85rem;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.9rem;pointer-events:none;}
+
+/* ═══════════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════════ */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center;padding:1rem;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--card);border:1px solid var(--border2);border-radius:var(--r);width:100%;max-width:640px;max-height:90vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,.5);}
+.modal-header{padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);z-index:1;}
+.modal-title{font-size:1rem;font-weight:700;}
+.modal-body{padding:1.5rem;}
+.modal-footer{padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;gap:.75rem;justify-content:flex-end;}
+.close-btn{background:none;border:none;color:var(--muted);font-size:1.25rem;cursor:pointer;padding:.25rem;line-height:1;}
+.close-btn:hover{color:var(--text);}
+
+/* ═══════════════════════════════════════════════
+   TAGS / PILLS
+═══════════════════════════════════════════════ */
+.pill{display:inline-block;padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:600;}
+.pill-blue{background:rgba(59,130,246,.15);color:var(--accent);}
+.pill-green{background:rgba(16,185,129,.15);color:var(--success);}
+.pill-warn{background:rgba(245,158,11,.15);color:var(--warn);}
+.pill-red{background:rgba(239,68,68,.15);color:var(--danger);}
+
+/* ═══════════════════════════════════════════════
+   ANALYZER PAGE (preserved from original)
+═══════════════════════════════════════════════ */
+.hero{text-align:center;padding:2.5rem 0 1.75rem;}
+.hero h1{font-size:clamp(1.6rem,4vw,2.5rem);font-weight:800;line-height:1.15;letter-spacing:-.5px;margin-bottom:.6rem;}
+.hero h1 span{background:linear-gradient(90deg,var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hero p{color:var(--muted);font-size:1rem;max-width:520px;margin:0 auto 1.5rem;line-height:1.6;}
+
+.upload-zone{border:2px dashed var(--border);border-radius:var(--r);padding:2.5rem 2rem;text-align:center;background:var(--surface);cursor:pointer;transition:border-color .2s,background .2s;position:relative;margin-bottom:1.25rem;}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:rgba(59,130,246,.06);}
+.upload-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-icon{width:52px;height:52px;border-radius:14px;background:rgba(59,130,246,.12);margin:0 auto .875rem;display:flex;align-items:center;justify-content:center;font-size:24px;}
+.upload-zone h3{font-size:1rem;font-weight:600;margin-bottom:.35rem;}
+.upload-zone p{color:var(--muted);font-size:.82rem;}
+.upload-hint{display:flex;align-items:center;justify-content:center;gap:1.5rem;margin-top:1.25rem;font-size:.76rem;color:var(--muted);}
+
+.analysis-grid{display:grid;grid-template-columns:1fr 330px;gap:1.25rem;align-items:start;}
+@media(max-width:768px){.analysis-grid{grid-template-columns:1fr;}}
+
+.video-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;}
+.panel-header{padding:.8rem 1.1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.panel-title{font-size:.82rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:6px;}
+.status-dot.active{background:var(--success);box-shadow:0 0 6px var(--success);animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.video-wrapper{position:relative;background:#000;min-height:260px;}
+#videoEl,#canvasEl{width:100%;display:block;}
+#canvasEl{position:absolute;top:0;left:0;}
+.video-placeholder{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.625rem;color:var(--muted);font-size:.875rem;}
+.video-placeholder .ph-icon{font-size:2.75rem;opacity:.3;}
+.video-controls{padding:.8rem 1.1rem;display:flex;gap:.625rem;flex-wrap:wrap;}
+
+.results-panel{display:flex;flex-direction:column;gap:.875rem;}
+.recovery-score{text-align:center;padding:1.25rem;}
+.score-ring{width:120px;height:120px;margin:0 auto .875rem;position:relative;display:flex;align-items:center;justify-content:center;}
+.score-ring svg{position:absolute;top:0;left:0;transform:rotate(-90deg);}
+.score-num{font-size:2.2rem;font-weight:800;line-height:1;position:relative;z-index:1;}
+.score-unit{font-size:.9rem;font-weight:500;color:var(--muted);position:relative;z-index:1;}
+.stage-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:.76rem;font-weight:600;margin-bottom:.4rem;}
+.stage-label{font-size:.9rem;font-weight:600;margin-bottom:.2rem;}
+.stage-desc{font-size:.76rem;color:var(--muted);line-height:1.5;}
+
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:.625rem;}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:.75rem;}
+.metric-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:3px;}
+.metric-val{font-size:1.2rem;font-weight:700;}
+.metric-sub{font-size:.68rem;color:var(--muted);margin-top:2px;}
+.metric-bar{height:3px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:7px;overflow:hidden;}
+.metric-bar-fill{height:100%;border-radius:2px;transition:width .5s ease;}
+
+.suggestion-list{list-style:none;display:flex;flex-direction:column;gap:.5rem;}
+.suggestion-list li{display:flex;align-items:flex-start;gap:.5rem;font-size:.8rem;line-height:1.5;color:var(--muted);}
+.sug-icon{width:18px;height:18px;border-radius:50%;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:10px;}
+.sug-icon.info{background:rgba(59,130,246,.15);color:var(--accent);}
+.sug-icon.warn{background:rgba(245,158,11,.15);color:var(--warn);}
+.sug-icon.ok{background:rgba(16,185,129,.15);color:var(--success);}
+
+.timeline{display:flex;flex-direction:column;gap:.4rem;}
+.stage-row{display:flex;align-items:center;gap:.625rem;padding:.5rem .75rem;border-radius:var(--rs);border:1px solid transparent;transition:all .2s;font-size:.78rem;}
+.stage-row.active{background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.25);}
+.stage-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.stage-row-name{font-weight:500;flex:1;}
+.stage-row-pct{color:var(--muted);font-size:.73rem;}
+
+.analyzing-overlay{display:none;position:absolute;inset:0;background:rgba(10,15,30,.88);z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:.875rem;}
+.analyzing-overlay.visible{display:flex;}
+.spinner{width:40px;height:40px;border-radius:50%;border:3px solid rgba(59,130,246,.2);border-top-color:var(--accent);animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.analyzing-text{font-size:.875rem;color:var(--muted);}
+.analyzing-steps{font-size:.74rem;color:rgba(136,153,187,.6);text-align:center;}
+
+.disclaimer{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:var(--rs);padding:.75rem .875rem;font-size:.75rem;color:rgba(245,158,11,.85);line-height:1.5;display:flex;gap:.5rem;margin-bottom:1.25rem;}
+
+/* save session banner */
+.save-banner{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:var(--rs);padding:.875rem 1.1rem;display:none;align-items:center;justify-content:space-between;gap:1rem;margin-top:1.25rem;}
+.save-banner.visible{display:flex;}
+.save-banner-text{font-size:.85rem;color:var(--success);font-weight:500;}
+
+/* divider */
+.divider{height:1px;background:var(--border);margin:1.25rem 0;}
+
+/* empty state */
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--muted);}
+.empty-icon{font-size:3rem;opacity:.3;margin-bottom:.875rem;}
+.empty-title{font-size:.95rem;font-weight:600;color:var(--text);margin-bottom:.4rem;}
+.empty-sub{font-size:.82rem;}
+
+/* progress chart */
+.chart-wrap{position:relative;height:200px;}
+
+/* toast */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--card);border:1px solid var(--border2);border-radius:var(--rs);padding:.75rem 1.1rem;font-size:.82rem;display:flex;align-items:center;gap:.625rem;z-index:999;transform:translateY(100px);opacity:0;transition:all .3s;box-shadow:0 8px 30px rgba(0,0,0,.4);}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast-icon{font-size:1rem;}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">
+    <div class="logo-icon">🦿</div>
+    <div class="logo-text">Neuro<span>Step</span></div>
+  </div>
+  <div class="nav-right">
+    <span class="nav-badge" id="currentPatientBadge" style="display:none;"></span>
+    <span class="nav-badge">v2.0 · Patient Management</span>
+  </div>
+</nav>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" data-tab="analyzer">🧠 Gait Analyzer</div>
+  <div class="tab" data-tab="patients">👥 Patients <span class="tab-count" id="patientCount">0</span></div>
+  <div class="tab" data-tab="dashboard">📊 Dashboard</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><span class="toast-icon">✓</span><span id="toastMsg"></span></div>
+
+<!-- ═══════════════════════════════════════════
+     PAGE 1: ANALYZER
+═══════════════════════════════════════════ -->
+<div class="page active" id="page-analyzer">
+<div class="container">
+  <div class="hero">
+    <h1>Gait Recovery <span>Analysis</span></h1>
+    <p>Upload a walking video — AI analyses posture, symmetry, and movement patterns to estimate recovery stage.</p>
+  </div>
+
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="videoInput" accept="video/*">
+    <div class="upload-icon">📹</div>
+    <h3>Upload a walking video</h3>
+    <p>Side-view or front-view · MP4, MOV, AVI · up to 60 seconds</p>
+    <div class="upload-hint">
+      <span>✓ Runs locally</span><span>✓ No data uploaded</span><span>✓ Frame-by-frame AI</span>
+    </div>
+  </div>
+
+  <div class="disclaimer"><span>⚠</span><span>This tool is a <strong>progress tracking aid</strong>, not a clinical diagnosis. Always consult your physiotherapist or doctor.</span></div>
+
+  <div class="analysis-grid" id="analysisGrid" style="display:none;">
+    <div class="video-panel">
+      <div class="panel-header">
+        <span class="panel-title"><span class="status-dot" id="statusDot"></span>Video Feed</span>
+        <span id="frameCount" style="font-size:.75rem;color:var(--muted);">—</span>
+      </div>
+      <div class="video-wrapper" style="position:relative;">
+        <div class="video-placeholder" id="videoPlaceholder"><div class="ph-icon">🎬</div><span>Video will appear here</span></div>
+        <video id="videoEl" style="display:none;width:100%;" playsinline muted></video>
+        <canvas id="canvasEl" style="display:none;position:absolute;top:0;left:0;width:100%;"></canvas>
+        <div class="analyzing-overlay" id="analyzingOverlay">
+          <div class="spinner"></div>
+          <div class="analyzing-text">Analysing gait patterns…</div>
+          <div class="analyzing-steps" id="analyzeStep">Loading pose model</div>
+        </div>
+      </div>
+      <div class="video-controls">
+        <button class="btn primary" id="analyzeBtn" disabled>▶ Analyse</button>
+        <button class="btn" id="playBtn" disabled>⏸ Pause</button>
+        <button class="btn" id="resetBtn">↺ New video</button>
+      </div>
+    </div>
+
+    <div class="results-panel">
+      <div class="card recovery-score">
+        <div class="section-title">Recovery Score</div>
+        <div class="score-ring">
+          <svg viewBox="0 0 120 120" width="120" height="120">
+            <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="9"/>
+            <circle id="scoreArc" cx="60" cy="60" r="52" fill="none" stroke="var(--accent)" stroke-width="9" stroke-linecap="round" stroke-dasharray="327" stroke-dashoffset="327" style="transition:stroke-dashoffset .8s ease,stroke .5s ease;"/>
+          </svg>
+          <div><div class="score-num" id="scoreNum">—</div><div class="score-unit">%</div></div>
+        </div>
+        <span class="stage-badge" id="stageBadge">Awaiting analysis</span>
+        <div class="stage-label" id="stageLabel">Upload a video to begin</div>
+        <div class="stage-desc" id="stageDesc">The AI will detect pose landmarks and classify your gait pattern.</div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Gait Metrics</div>
+        <div class="metrics-grid">
+          <div class="metric"><div class="metric-label">Symmetry</div><div class="metric-val" id="mSymmetry">—</div><div class="metric-sub">Left/right balance</div><div class="metric-bar"><div class="metric-bar-fill" id="bSymmetry" style="width:0%;background:var(--accent);"></div></div></div>
+          <div class="metric"><div class="metric-label">Trunk lean</div><div class="metric-val" id="mLean">—</div><div class="metric-sub">Lateral tilt</div><div class="metric-bar"><div class="metric-bar-fill" id="bLean" style="width:0%;background:var(--warn);"></div></div></div>
+          <div class="metric"><div class="metric-label">Stride quality</div><div class="metric-val" id="mStride">—</div><div class="metric-sub">Consistency score</div><div class="metric-bar"><div class="metric-bar-fill" id="bStride" style="width:0%;background:var(--success);"></div></div></div>
+          <div class="metric"><div class="metric-label">Hip mobility</div><div class="metric-val" id="mHip">—</div><div class="metric-sub">Range of motion</div><div class="metric-bar"><div class="metric-bar-fill" id="bHip" style="width:0%;background:var(--cyan);"></div></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">AI Observations</div>
+        <ul class="suggestion-list" id="suggestionList"><li><span class="sug-icon info">i</span>Waiting for video analysis.</li></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- SAVE BANNER -->
+  <div class="save-banner" id="saveBanner">
+    <div class="save-banner-text">✓ Analysis complete — save this session to a patient record?</div>
+    <div style="display:flex;gap:.625rem;flex-shrink:0;">
+      <button class="btn success sm" onclick="openSaveSessionModal()">💾 Save Session</button>
+      <button class="btn sm" onclick="document.getElementById('saveBanner').classList.remove('visible')">Dismiss</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1.25rem;">
+    <div class="section-title">Recovery Stages Reference</div>
+    <div class="timeline" id="stagesTimeline">
+      <div class="stage-row" data-stage="1"><div class="stage-dot" style="background:var(--s1);"></div><span class="stage-row-name">Stage 1 — Bilateral support</span><span class="stage-row-pct">10–25%</span></div>
+      <div class="stage-row" data-stage="2"><div class="stage-dot" style="background:var(--s2);"></div><span class="stage-row-name">Stage 2 — Single crutch / walker</span><span class="stage-row-pct">25–45%</span></div>
+      <div class="stage-row" data-stage="3"><div class="stage-dot" style="background:var(--s3);"></div><span class="stage-row-name">Stage 3 — Unassisted with heavy lean</span><span class="stage-row-pct">45–65%</span></div>
+      <div class="stage-row" data-stage="4"><div class="stage-dot" style="background:var(--s4);"></div><span class="stage-row-name">Stage 4 — Mild asymmetry, slow gait</span><span class="stage-row-pct">65–85%</span></div>
+      <div class="stage-row" data-stage="5"><div class="stage-dot" style="background:var(--s5);"></div><span class="stage-row-name">Stage 5 — Near-normal gait</span><span class="stage-row-pct">85–100%</span></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PAGE 2: PATIENTS
+═══════════════════════════════════════════ -->
+<div class="page" id="page-patients">
+<div class="container">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:.75rem;">
+    <div>
+      <h2 style="font-size:1.3rem;font-weight:700;">Patient Records</h2>
+      <p style="font-size:.82rem;color:var(--muted);margin-top:2px;">Register patients, view history, add notes and payments.</p>
+    </div>
+    <button class="btn primary" onclick="openRegisterModal()">+ Register Patient</button>
+  </div>
+
+  <div class="search-bar" style="margin-bottom:1rem;">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="patientSearch" placeholder="Search by name, diagnosis, or phone…" oninput="renderPatientList()">
+  </div>
+
+  <div class="grid-4" style="margin-bottom:1.25rem;">
+    <div class="stat-card"><div class="stat-val" id="statTotal" style="color:var(--accent);">0</div><div class="stat-label">Total Patients</div></div>
+    <div class="stat-card"><div class="stat-val" id="statActive" style="color:var(--success);">0</div><div class="stat-label">Active This Month</div></div>
+    <div class="stat-card"><div class="stat-val" id="statSessions" style="color:var(--cyan);">0</div><div class="stat-label">Total Sessions</div></div>
+    <div class="stat-card"><div class="stat-val" id="statRevenue" style="color:var(--warn);">KSh 0</div><div class="stat-label">Total Revenue</div></div>
+  </div>
+
+  <div id="patientListWrap"></div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PAGE 3: DASHBOARD
+═══════════════════════════════════════════ -->
+<div class="page" id="page-dashboard">
+<div class="container">
+  <div style="margin-bottom:1.25rem;">
+    <h2 style="font-size:1.3rem;font-weight:700;">Clinical Dashboard</h2>
+    <p style="font-size:.82rem;color:var(--muted);margin-top:2px;">Overview of all patients and recovery trends.</p>
+  </div>
+  <div class="grid-4" style="margin-bottom:1.5rem;">
+    <div class="stat-card"><div class="stat-val" id="d-total" style="color:var(--accent);">0</div><div class="stat-label">Patients</div><div class="stat-sub">All time</div></div>
+    <div class="stat-card"><div class="stat-val" id="d-sessions" style="color:var(--cyan);">0</div><div class="stat-label">Sessions</div><div class="stat-sub">All time</div></div>
+    <div class="stat-card"><div class="stat-val" id="d-avg" style="color:var(--success);">—</div><div class="stat-label">Avg Recovery Score</div><div class="stat-sub">Across all sessions</div></div>
+    <div class="stat-card"><div class="stat-val" id="d-revenue" style="color:var(--warn);">KSh 0</div><div class="stat-label">Revenue</div><div class="stat-sub">All time</div></div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:1.5rem;">
+    <div class="card">
+      <div class="section-title">Recovery Score Distribution</div>
+      <div class="chart-wrap"><canvas id="chartDist"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="section-title">Sessions Over Time</div>
+      <div class="chart-wrap"><canvas id="chartSessions"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Recent Sessions</div>
+    <div id="recentSessionsList"></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MODAL: REGISTER PATIENT
+═══════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalRegister">
+<div class="modal">
+  <div class="modal-header">
+    <span class="modal-title">👤 Register New Patient</span>
+    <button class="close-btn" onclick="closeModal('modalRegister')">✕</button>
+  </div>
+  <div class="modal-body">
+    <div style="margin-bottom:1.25rem;">
+      <div class="section-title">Personal Information</div>
+      <div class="form-row" style="margin-bottom:.875rem;">
+        <div class="form-group"><label class="form-label">Full Name <span class="required">*</span></label><input type="text" id="reg-name" placeholder="e.g. Jane Wanjiku"></div>
+        <div class="form-group"><label class="form-label">Date of Birth <span class="required">*</span></label><input type="date" id="reg-dob"></div>
+      </div>
+      <div class="form-row" style="margin-bottom:.875rem;">
+        <div class="form-group"><label class="form-label">Gender</label>
+          <select id="reg-gender"><option value="">Select…</option><option>Male</option><option>Female</option><option>Other</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">ID / National ID No.</label><input type="text" id="reg-idno" placeholder="12345678"></div>
+      </div>
+      <div class="form-row" style="margin-bottom:.875rem;">
+        <div class="form-group"><label class="form-label">Phone Number <span class="required">*</span></label><input type="tel" id="reg-phone" placeholder="07XX XXX XXX"></div>
+        <div class="form-group"><label class="form-label">Email Address</label><input type="email" id="reg-email" placeholder="jane@email.com"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:.875rem;"><label class="form-label">Home Address</label><input type="text" id="reg-address" placeholder="e.g. Westlands, Nairobi"></div>
+      <div class="form-group"><label class="form-label">Emergency Contact (Name & Phone)</label><input type="text" id="reg-emergency" placeholder="e.g. John Doe — 0711 000 000"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+      <div class="section-title">Clinical Information</div>
+      <div class="form-row" style="margin-bottom:.875rem;">
+        <div class="form-group"><label class="form-label">Diagnosis <span class="required">*</span></label>
+          <select id="reg-diagnosis">
+            <option value="">Select diagnosis…</option>
+            <option>Fractured Leg — Tibia</option><option>Fractured Leg — Fibula</option>
+            <option>Fractured Leg — Femur</option><option>Hip Fracture</option>
+            <option>Stroke — Left Hemiplegia</option><option>Stroke — Right Hemiplegia</option>
+            <option>Post Knee Replacement</option><option>Post Hip Replacement</option>
+            <option>Spinal Cord Injury</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Other / Details</label><input type="text" id="reg-diagOther" placeholder="Specify if Other"></div>
+      </div>
+      <div class="form-row" style="margin-bottom:.875rem;">
+        <div class="form-group"><label class="form-label">Referring Doctor</label><input type="text" id="reg-doctor" placeholder="Dr. Kamau Njoroge"></div>
+        <div class="form-group"><label class="form-label">Date of Injury / Surgery</label><input type="date" id="reg-injuryDate"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Initial Clinical Notes</label><textarea id="reg-notes" placeholder="Any relevant history, allergies, or notes…"></textarea></div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn" onclick="closeModal('modalRegister')">Cancel</button>
+    <button class="btn primary" onclick="registerPatient()">Register Patient</button>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MODAL: PATIENT DETAIL / SESSION HISTORY
+═══════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalPatient" style="align-items:flex-start;padding-top:2rem;">
+<div class="modal" style="max-width:780px;">
+  <div class="modal-header">
+    <span class="modal-title" id="modalPatientTitle">Patient Record</span>
+    <div style="display:flex;gap:.5rem;align-items:center;">
+      <button class="btn sm cyan" onclick="startAnalyzerForPatient()">▶ New Analysis</button>
+      <button class="close-btn" onclick="closeModal('modalPatient')">✕</button>
+    </div>
+  </div>
+  <div class="modal-body" id="modalPatientBody"></div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MODAL: SAVE SESSION
+═══════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalSaveSession">
+<div class="modal">
+  <div class="modal-header">
+    <span class="modal-title">💾 Save Gait Session</span>
+    <button class="close-btn" onclick="closeModal('modalSaveSession')">✕</button>
+  </div>
+  <div class="modal-body">
+    <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:var(--rs);padding:.875rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;">
+      <div style="font-size:2rem;font-weight:800;" id="ss-scoreDisplay">—</div>
+      <div><div style="font-size:.875rem;font-weight:600;" id="ss-stageDisplay">—</div><div style="font-size:.75rem;color:var(--muted);">Score from current analysis</div></div>
+    </div>
+
+    <div class="section-title">Link to Patient</div>
+    <div class="search-bar" style="margin-bottom:.75rem;">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="ss-patientSearch" placeholder="Search patient by name or phone…" oninput="renderSaveSessionSearch()">
+    </div>
+    <div id="ss-patientResults" style="margin-bottom:1.25rem;max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:.4rem;"></div>
+    <div id="ss-selectedPatient" style="display:none;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:var(--rs);padding:.75rem;margin-bottom:1.25rem;">
+      <div style="font-size:.78rem;color:var(--success);font-weight:600;margin-bottom:.25rem;">Selected Patient</div>
+      <div id="ss-selectedName" style="font-weight:600;"></div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-title">Session Details</div>
+    <div class="form-row" style="margin-bottom:.875rem;">
+      <div class="form-group"><label class="form-label">Session Date</label><input type="date" id="ss-date"></div>
+      <div class="form-group"><label class="form-label">Next Appointment</label><input type="date" id="ss-nextAppt"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:.875rem;"><label class="form-label">Doctor's Notes</label><textarea id="ss-notes" placeholder="Clinical observations, progress notes…"></textarea></div>
+    <div class="form-group" style="margin-bottom:.875rem;"><label class="form-label">Prescription / Physiotherapy Instructions</label><textarea id="ss-prescription" placeholder="e.g. Continue physio 3x/week, add resistance band exercises…"></textarea></div>
+
+    <div class="divider"></div>
+    <div class="section-title">Payment</div>
+    <div class="form-row-3">
+      <div class="form-group"><label class="form-label">Amount Paid (KSh)</label><input type="number" id="ss-amount" placeholder="2500"></div>
+      <div class="form-group"><label class="form-label">Payment Method</label>
+        <select id="ss-method"><option value="">Select…</option><option>M-Pesa</option><option>Cash</option><option>Insurance</option><option>Bank Transfer</option><option>Unpaid</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Receipt / Ref No.</label><input type="text" id="ss-receipt" placeholder="MP240001"></div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn" onclick="closeModal('modalSaveSession')">Cancel</button>
+    <button class="btn primary" onclick="saveSession()">Save Session</button>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MODAL: ADD NOTE / PRESCRIPTION (standalone)
+═══════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalNote">
+<div class="modal" style="max-width:500px;">
+  <div class="modal-header">
+    <span class="modal-title">📝 Add Note to Session</span>
+    <button class="close-btn" onclick="closeModal('modalNote')">✕</button>
+  </div>
+  <div class="modal-body">
+    <input type="hidden" id="note-patientId">
+    <input type="hidden" id="note-sessionIdx">
+    <div class="form-group" style="margin-bottom:.875rem;"><label class="form-label">Doctor's Notes</label><textarea id="note-notes" style="min-height:90px;"></textarea></div>
+    <div class="form-group" style="margin-bottom:.875rem;"><label class="form-label">Prescription</label><textarea id="note-prescription" style="min-height:90px;"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Next Appointment</label><input type="date" id="note-nextAppt"></div>
+      <div class="form-group"><label class="form-label">Payment (KSh)</label><input type="number" id="note-amount" placeholder="0"></div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn" onclick="closeModal('modalNote')">Cancel</button>
+    <button class="btn primary" onclick="saveNote()">Save Note</button>
+  </div>
+</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DATA LAYER — localStorage
+// ═══════════════════════════════════════════════════════════
+function getPatients(){ try{ return JSON.parse(localStorage.getItem('ns_patients')||'[]'); }catch(e){ return []; } }
+function savePatients(p){ localStorage.setItem('ns_patients', JSON.stringify(p)); }
+function genId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function calcAge(dob){
+  if(!dob) return '—';
+  const d = new Date(dob), n = new Date();
+  let a = n.getFullYear() - d.getFullYear();
+  if(n.getMonth() < d.getMonth() || (n.getMonth()===d.getMonth() && n.getDate() < d.getDate())) a--;
+  return a;
+}
+
+function stageColor(s){
+  return ['','#ef4444','#f97316','#eab308','#84cc16','#10b981'][s] || '#3b82f6';
+}
+
+function avatarColor(name){
+  const colors=['#3b82f6','#06b6d4','#10b981','#f59e0b','#8b5cf6','#ef4444','#f97316'];
+  let h=0; for(let c of name) h=(h+c.charCodeAt(0))%colors.length;
+  return colors[h];
+}
+
+// ═══════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('page-'+t.dataset.tab).classList.add('active');
+    if(t.dataset.tab==='patients'){ renderPatientList(); updateStats(); }
+    if(t.dataset.tab==='dashboard'){ renderDashboard(); }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════
+function showToast(msg, icon='✓'){
+  const t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  t.querySelector('.toast-icon').textContent=icon;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODAL HELPERS
+// ═══════════════════════════════════════════════════════════
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o=>{
+  o.addEventListener('click', e=>{ if(e.target===o) o.classList.remove('open'); });
+});
+
+// ═══════════════════════════════════════════════════════════
+// REGISTER PATIENT
+// ═══════════════════════════════════════════════════════════
+function openRegisterModal(){
+  ['reg-name','reg-dob','reg-idno','reg-phone','reg-email','reg-address','reg-emergency',
+   'reg-diagOther','reg-doctor','reg-injuryDate','reg-notes'].forEach(id=>{
+     const el=document.getElementById(id); if(el) el.value='';
+   });
+  document.getElementById('reg-gender').value='';
+  document.getElementById('reg-diagnosis').value='';
+  openModal('modalRegister');
+}
+
+function registerPatient(){
+  const name=document.getElementById('reg-name').value.trim();
+  const dob=document.getElementById('reg-dob').value;
+  const phone=document.getElementById('reg-phone').value.trim();
+  const diagnosis=document.getElementById('reg-diagnosis').value || document.getElementById('reg-diagOther').value.trim();
+  if(!name||!phone||!diagnosis){ showToast('Please fill in Name, Phone, and Diagnosis','⚠'); return; }
+
+  const patients=getPatients();
+  const p={
+    id: genId(), name, dob, phone,
+    gender: document.getElementById('reg-gender').value,
+    idNo: document.getElementById('reg-idno').value.trim(),
+    email: document.getElementById('reg-email').value.trim(),
+    address: document.getElementById('reg-address').value.trim(),
+    emergency: document.getElementById('reg-emergency').value.trim(),
+    diagnosis, diagOther: document.getElementById('reg-diagOther').value.trim(),
+    referringDoctor: document.getElementById('reg-doctor').value.trim(),
+    injuryDate: document.getElementById('reg-injuryDate').value,
+    initialNotes: document.getElementById('reg-notes').value.trim(),
+    dateRegistered: new Date().toISOString(),
+    sessions:[]
+  };
+  patients.push(p);
+  savePatients(patients);
+  closeModal('modalRegister');
+  renderPatientList(); updateStats();
+  document.getElementById('patientCount').textContent=patients.length;
+  showToast(`${name} registered successfully`,'👤');
+}
+
+// ═══════════════════════════════════════════════════════════
+// PATIENT LIST
+// ═══════════════════════════════════════════════════════════
+function renderPatientList(){
+  const patients=getPatients();
+  const q=(document.getElementById('patientSearch')||{value:''}).value.toLowerCase();
+  const filtered=patients.filter(p=>
+    p.name.toLowerCase().includes(q)||
+    (p.diagnosis||'').toLowerCase().includes(q)||
+    (p.phone||'').includes(q)
+  );
+
+  const wrap=document.getElementById('patientListWrap');
+  if(!wrap) return;
+
+  if(!filtered.length){
+    wrap.innerHTML=`<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">${patients.length?'No patients match your search':'No patients registered yet'}</div><div class="empty-sub">${patients.length?'Try a different search term':'Click "Register Patient" to add your first patient'}</div></div>`;
+    return;
+  }
+
+  wrap.innerHTML=`<div class="patient-list">${filtered.map(p=>{
+    const lastSession=p.sessions[p.sessions.length-1];
+    const lastScore=lastSession?lastSession.score:'—';
+    const lastStage=lastSession?lastSession.stage:0;
+    const age=calcAge(p.dob);
+    const initials=p.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+    const col=avatarColor(p.name);
+    return `<div class="patient-row" onclick="openPatientModal('${p.id}')">
+      <div class="patient-avatar" style="background:${col}22;color:${col};">${initials}</div>
+      <div class="patient-info">
+        <div class="patient-name">${p.name}</div>
+        <div class="patient-meta">${age!=='—'?age+' yrs · ':''}<span>${p.gender||''}</span> · ${p.diagnosis||'—'}</div>
+        <div class="patient-meta" style="margin-top:2px;">📞 ${p.phone} · ${p.sessions.length} session${p.sessions.length!==1?'s':''}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div class="patient-score" style="color:${stageColor(lastStage)}">${lastScore}${lastScore!=='—'?'%':''}</div>
+        ${lastStage?`<div class="patient-badge" style="background:${stageColor(lastStage)}22;color:${stageColor(lastStage)};">Stage ${lastStage}</div>`:'<div style="font-size:.72rem;color:var(--muted);">No sessions</div>'}
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function updateStats(){
+  const patients=getPatients();
+  const now=new Date(), thisMonth=now.getMonth(), thisYear=now.getFullYear();
+  let sessions=0, revenue=0, activeSet=new Set();
+  patients.forEach(p=>{
+    p.sessions.forEach(s=>{
+      sessions++;
+      revenue+=parseFloat(s.amountPaid||0);
+      const sd=new Date(s.date);
+      if(sd.getMonth()===thisMonth && sd.getFullYear()===thisYear) activeSet.add(p.id);
+    });
+  });
+  const fmt=n=>n>=1000?'KSh '+(n/1000).toFixed(1)+'k':'KSh '+n;
+  document.getElementById('statTotal').textContent=patients.length;
+  document.getElementById('statActive').textContent=activeSet.size;
+  document.getElementById('statSessions').textContent=sessions;
+  document.getElementById('statRevenue').textContent=fmt(revenue);
+  document.getElementById('patientCount').textContent=patients.length;
+}
+
+// ═══════════════════════════════════════════════════════════
+// PATIENT DETAIL MODAL
+// ═══════════════════════════════════════════════════════════
+let currentPatientId=null;
+
+function openPatientModal(pid){
+  currentPatientId=pid;
+  const patients=getPatients();
+  const p=patients.find(x=>x.id===pid);
+  if(!p) return;
+
+  document.getElementById('modalPatientTitle').textContent='📋 '+p.name;
+  document.getElementById('currentPatientBadge').textContent='Active: '+p.name;
+  document.getElementById('currentPatientBadge').style.display='inline-block';
+
+  const age=calcAge(p.dob);
+  const totalPaid=p.sessions.reduce((a,s)=>a+parseFloat(s.amountPaid||0),0);
+  const scores=p.sessions.filter(s=>s.score).map(s=>s.score);
+  const avgScore=scores.length?(scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(0):'—';
+  const latestScore=scores.length?scores[scores.length-1]:'—';
+
+  const body=document.getElementById('modalPatientBody');
+  body.innerHTML=`
+    <!-- PATIENT INFO -->
+    <div class="grid-2" style="margin-bottom:1.25rem;">
+      <div>
+        <div class="section-title">Patient Information</div>
+        <div style="display:flex;flex-direction:column;gap:.4rem;font-size:.85rem;">
+          <div><span style="color:var(--muted);width:110px;display:inline-block;">Full Name</span><strong>${p.name}</strong></div>
+          <div><span style="color:var(--muted);width:110px;display:inline-block;">Age / DOB</span>${age!=='—'?age+' yrs':''} ${p.dob?'('+p.dob+')':''}</div>
+          <div><span style="color:var(--muted);width:110px;display:inline-block;">Gender</span>${p.gender||'—'}</div>
+          <div><span style="color:var(--muted);width:110px;display:inline-block;">Phone</span>${p.phone||'—'}</div>
+          <div><span style="color:var(--muted);width:110px;display:inline-block;">Email</span>${p.email||'—'}</div>
+          <div><span style="color:var(--muted);width:110px;display:inline-block;">ID No.</span>${p.idNo||'—'}</div>
+          <div><span style="color:var(--muted);width:110px;display:inline-block;">Address</span>${p.address||'—'}</div>
+          <div><span style="color:var(--muted);width:110px;display:inline-block;">Emergency</span>${p.emergency||'—'}</div>
+        </div>
+      </div>
+      <div>
+        <div class="section-title">Clinical Summary</div>
+        <div style="display:flex;flex-direction:column;gap:.4rem;font-size:.85rem;">
+          <div><span style="color:var(--muted);width:120px;display:inline-block;">Diagnosis</span><strong>${p.diagnosis||'—'}</strong></div>
+          <div><span style="color:var(--muted);width:120px;display:inline-block;">Ref. Doctor</span>${p.referringDoctor||'—'}</div>
+          <div><span style="color:var(--muted);width:120px;display:inline-block;">Injury Date</span>${p.injuryDate||'—'}</div>
+          <div><span style="color:var(--muted);width:120px;display:inline-block;">Registered</span>${new Date(p.dateRegistered).toLocaleDateString()}</div>
+        </div>
+        <div style="margin-top:1rem;">
+          <div class="section-title">Recovery Stats</div>
+          <div class="grid-3" style="gap:.5rem;">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:.625rem;text-align:center;">
+              <div style="font-size:1.4rem;font-weight:800;color:var(--cyan);">${p.sessions.length}</div>
+              <div style="font-size:.68rem;color:var(--muted);">Sessions</div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:.625rem;text-align:center;">
+              <div style="font-size:1.4rem;font-weight:800;color:var(--success);">${latestScore}${latestScore!=='—'?'%':''}</div>
+              <div style="font-size:.68rem;color:var(--muted);">Latest Score</div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:.625rem;text-align:center;">
+              <div style="font-size:1.4rem;font-weight:800;color:var(--warn);">KSh${totalPaid>=1000?(totalPaid/1000).toFixed(1)+'k':totalPaid}</div>
+              <div style="font-size:.68rem;color:var(--muted);">Total Paid</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    ${p.initialNotes?`<div style="margin-bottom:1.25rem;"><div class="section-title">Initial Clinical Notes</div><div class="notes-box">${p.initialNotes}</div></div>`:''}
+
+    <!-- PROGRESS CHART -->
+    ${scores.length>1?`<div style="margin-bottom:1.25rem;"><div class="section-title">Recovery Progress</div><div style="height:140px;"><canvas id="patientChart"></canvas></div></div>`:''}
+
+    <!-- SESSION HISTORY -->
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
+        <div class="section-title" style="margin-bottom:0;">Session History (${p.sessions.length})</div>
+        <button class="btn sm cyan" onclick="startAnalyzerForPatient()">+ New Session</button>
+      </div>
+      ${p.sessions.length===0
+        ?`<div class="empty-state" style="padding:1.5rem;"><div class="empty-icon" style="font-size:2rem;">🏃</div><div class="empty-title">No sessions yet</div><div class="empty-sub">Run a gait analysis and save it to this patient</div></div>`
+        :p.sessions.slice().reverse().map((s,ri)=>{
+          const si=p.sessions.length-1-ri;
+          const col=stageColor(s.stage);
+          return `<div class="session-card">
+            <div class="session-header" onclick="toggleSession(this)">
+              <div style="flex:1;">
+                <div style="font-weight:600;font-size:.875rem;">Session ${si+1} — ${new Date(s.date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
+                <div class="session-date">Dr. ${s.doctor||p.referringDoctor||'—'} · ${s.paymentMethod||'—'} ${s.amountPaid?'· KSh '+s.amountPaid:''}</div>
+              </div>
+              <span class="session-score-pill" style="background:${col}22;color:${col};">${s.score?s.score+'%':'—'} · Stage ${s.stage||'—'}</span>
+              <span style="color:var(--muted);font-size:.8rem;margin-left:.5rem;">▼</span>
+            </div>
+            <div class="session-body">
+              <div class="grid-2" style="margin-bottom:.875rem;gap:.625rem;">
+                <div><div class="section-title">Gait Metrics</div>
+                  <div style="display:flex;flex-direction:column;gap:.3rem;font-size:.8rem;">
+                    <div><span style="color:var(--muted);width:100px;display:inline-block;">Symmetry</span>${s.metrics?Math.round(s.metrics.symmetry)+'%':'—'}</div>
+                    <div><span style="color:var(--muted);width:100px;display:inline-block;">Trunk Lean</span>${s.metrics?s.metrics.trunkLeanDeg.toFixed(1)+'°':'—'}</div>
+                    <div><span style="color:var(--muted);width:100px;display:inline-block;">Stride Quality</span>${s.metrics?Math.round(s.metrics.strideScore)+'%':'—'}</div>
+                    <div><span style="color:var(--muted);width:100px;display:inline-block;">Hip Mobility</span>${s.metrics?Math.round(s.metrics.hipMobility)+'%':'—'}</div>
+                  </div>
+                </div>
+                <div><div class="section-title">Payment</div>
+                  <div style="display:flex;flex-direction:column;gap:.3rem;font-size:.8rem;">
+                    <div><span style="color:var(--muted);width:100px;display:inline-block;">Amount</span>KSh ${s.amountPaid||'0'}</div>
+                    <div><span style="color:var(--muted);width:100px;display:inline-block;">Method</span>${s.paymentMethod||'—'}</div>
+                    <div><span style="color:var(--muted);width:100px;display:inline-block;">Receipt</span>${s.receiptNo||'—'}</div>
+                    <div><span style="color:var(--muted);width:100px;display:inline-block;">Next Appt.</span>${s.nextAppointment||'—'}</div>
+                  </div>
+                </div>
+              </div>
+              ${s.doctorNotes?`<div style="margin-bottom:.625rem;"><div class="section-title">Doctor's Notes</div><div class="notes-box">${s.doctorNotes}</div></div>`:''}
+              ${s.prescription?`<div style="margin-bottom:.625rem;"><div class="section-title">Prescription / Physio Instructions</div><div class="notes-box">${s.prescription}</div></div>`:''}
+              <div style="display:flex;gap:.5rem;margin-top:.75rem;">
+                <button class="btn sm" onclick="openNoteModal('${p.id}',${si})">✏ Edit Notes</button>
+              </div>
+            </div>
+          </div>`;
+        }).join('')
+      }
+    </div>
+  `;
+
+  openModal('modalPatient');
+
+  // Draw patient progress chart if enough data
+  if(scores.length>1){
+    setTimeout(()=>{
+      const labels=p.sessions.map((_,i)=>'S'+(i+1));
+      const ch=document.getElementById('patientChart');
+      if(!ch) return;
+      new Chart(ch,{
+        type:'line',
+        data:{ labels, datasets:[{ data:scores, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,.1)', tension:.4, fill:true, pointBackgroundColor:'#3b82f6', pointRadius:4 }] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} },
+          scales:{ y:{ min:0, max:100, ticks:{color:'#8899bb',font:{size:10}}, grid:{color:'rgba(255,255,255,.05)'} },
+            x:{ ticks:{color:'#8899bb',font:{size:10}}, grid:{color:'rgba(255,255,255,.05)'} } } }
+      });
+    },100);
+  }
+}
+
+function toggleSession(el){
+  const body=el.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+function startAnalyzerForPatient(){
+  closeModal('modalPatient');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelector('[data-tab="analyzer"]').classList.add('active');
+  document.getElementById('page-analyzer').classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════
+// NOTE MODAL
+// ═══════════════════════════════════════════════════════════
+function openNoteModal(pid, si){
+  const patients=getPatients();
+  const p=patients.find(x=>x.id===pid);
+  const s=p&&p.sessions[si];
+  document.getElementById('note-patientId').value=pid;
+  document.getElementById('note-sessionIdx').value=si;
+  document.getElementById('note-notes').value=s?s.doctorNotes||'':'';
+  document.getElementById('note-prescription').value=s?s.prescription||'':'';
+  document.getElementById('note-nextAppt').value=s?s.nextAppointment||'':'';
+  document.getElementById('note-amount').value=s?s.amountPaid||'':'';
+  openModal('modalNote');
+}
+
+function saveNote(){
+  const pid=document.getElementById('note-patientId').value;
+  const si=parseInt(document.getElementById('note-sessionIdx').value);
+  const patients=getPatients();
+  const p=patients.find(x=>x.id===pid);
+  if(!p||!p.sessions[si]) return;
+  p.sessions[si].doctorNotes=document.getElementById('note-notes').value.trim();
+  p.sessions[si].prescription=document.getElementById('note-prescription').value.trim();
+  p.sessions[si].nextAppointment=document.getElementById('note-nextAppt').value;
+  p.sessions[si].amountPaid=document.getElementById('note-amount').value||p.sessions[si].amountPaid;
+  savePatients(patients);
+  closeModal('modalNote');
+  openPatientModal(pid);
+  showToast('Session notes updated','✓');
+}
+
+// ═══════════════════════════════════════════════════════════
+// SAVE SESSION MODAL
+// ═══════════════════════════════════════════════════════════
+let lastAnalysisResult=null;
+let selectedSavePatientId=null;
+
+function openSaveSessionModal(){
+  if(!lastAnalysisResult){ showToast('Run an analysis first','⚠'); return; }
+  document.getElementById('ss-scoreDisplay').textContent=lastAnalysisResult.pct+'%';
+  document.getElementById('ss-scoreDisplay').style.color=lastAnalysisResult.color;
+  document.getElementById('ss-stageDisplay').textContent=lastAnalysisResult.label;
+  document.getElementById('ss-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('ss-nextAppt').value='';
+  document.getElementById('ss-notes').value='';
+  document.getElementById('ss-prescription').value='';
+  document.getElementById('ss-amount').value='';
+  document.getElementById('ss-method').value='';
+  document.getElementById('ss-receipt').value='';
+  document.getElementById('ss-patientSearch').value='';
+  selectedSavePatientId = currentPatientId || null;
+  renderSaveSessionSearch();
+  if(currentPatientId){
+    const patients=getPatients();
+    const p=patients.find(x=>x.id===currentPatientId);
+    if(p) selectSavePatient(p.id, p.name);
+  }
+  openModal('modalSaveSession');
+}
+
+function renderSaveSessionSearch(){
+  const q=document.getElementById('ss-patientSearch').value.toLowerCase();
+  const patients=getPatients();
+  const filtered=q?patients.filter(p=>p.name.toLowerCase().includes(q)||(p.phone||'').includes(q)):patients.slice(0,6);
+  const wrap=document.getElementById('ss-patientResults');
+  if(!filtered.length){ wrap.innerHTML=`<div style="font-size:.8rem;color:var(--muted);padding:.5rem;">No patients found</div>`; return; }
+  wrap.innerHTML=filtered.map(p=>`
+    <div onclick="selectSavePatient('${p.id}','${p.name.replace(/'/g,"\\'")}')
+    " style="padding:.6rem .875rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;font-size:.82rem;display:flex;justify-content:space-between;align-items:center;transition:border-color .15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div><strong>${p.name}</strong><span style="color:var(--muted);margin-left:.5rem;">${p.phone}</span></div>
+      <span style="color:var(--muted);font-size:.75rem;">${p.diagnosis||''}</span>
+    </div>`).join('');
+}
+
+function selectSavePatient(id, name){
+  selectedSavePatientId=id;
+  document.getElementById('ss-selectedPatient').style.display='block';
+  document.getElementById('ss-selectedName').textContent=name;
+  document.getElementById('ss-patientResults').innerHTML='';
+  document.getElementById('ss-patientSearch').value='';
+}
+
+function saveSession(){
+  if(!selectedSavePatientId){ showToast('Please select a patient','⚠'); return; }
+  if(!lastAnalysisResult){ showToast('No analysis result to save','⚠'); return; }
+  const patients=getPatients();
+  const p=patients.find(x=>x.id===selectedSavePatientId);
+  if(!p){ showToast('Patient not found','⚠'); return; }
+  const session={
+    id: genId(),
+    date: document.getElementById('ss-date').value || new Date().toISOString(),
+    score: lastAnalysisResult.pct,
+    stage: lastAnalysisResult.stage,
+    metrics: lastAnalysisResult.metrics,
+    doctorNotes: document.getElementById('ss-notes').value.trim(),
+    prescription: document.getElementById('ss-prescription').value.trim(),
+    nextAppointment: document.getElementById('ss-nextAppt').value,
+    amountPaid: parseFloat(document.getElementById('ss-amount').value)||0,
+    paymentMethod: document.getElementById('ss-method').value,
+    receiptNo: document.getElementById('ss-receipt').value.trim(),
+    createdAt: new Date().toISOString()
+  };
+  p.sessions.push(session);
+  savePatients(patients);
+  closeModal('modalSaveSession');
+  document.getElementById('saveBanner').classList.remove('visible');
+  showToast(`Session saved for ${p.name}`,'💾');
+  updateStats();
+}
+
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════
+let dashChartsInit=false;
+let chartDistInst=null, chartSessionsInst=null;
+
+function renderDashboard(){
+  const patients=getPatients();
+  let allSessions=[], totalRevenue=0;
+  patients.forEach(p=>p.sessions.forEach(s=>{ allSessions.push({...s,patientName:p.name,pid:p.id}); totalRevenue+=parseFloat(s.amountPaid||0); }));
+  allSessions.sort((a,b)=>new Date(b.date)-new Date(a.date));
+
+  const scores=allSessions.filter(s=>s.score).map(s=>s.score);
+  const avg=scores.length?(scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(0)+'%':'—';
+
+  document.getElementById('d-total').textContent=patients.length;
+  document.getElementById('d-sessions').textContent=allSessions.length;
+  document.getElementById('d-avg').textContent=avg;
+  document.getElementById('d-revenue').textContent=totalRevenue>=1000?'KSh '+(totalRevenue/1000).toFixed(1)+'k':'KSh '+totalRevenue;
+
+  // Recent sessions
+  const recent=document.getElementById('recentSessionsList');
+  if(!allSessions.length){ recent.innerHTML=`<div class="empty-state" style="padding:1.5rem;"><div class="empty-icon" style="font-size:2rem;">📋</div><div class="empty-title">No sessions yet</div></div>`; }
+  else recent.innerHTML=`<div style="display:flex;flex-direction:column;gap:.5rem;">${allSessions.slice(0,10).map(s=>{
+    const col=stageColor(s.stage);
+    return `<div style="display:flex;align-items:center;gap:1rem;padding:.75rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;" onclick="openPatientModal('${s.pid}')">
+      <div style="flex:1;"><div style="font-weight:600;font-size:.875rem;">${s.patientName}</div><div style="font-size:.75rem;color:var(--muted);">${new Date(s.date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div></div>
+      <span style="font-size:.8rem;padding:3px 10px;border-radius:20px;background:${col}22;color:${col};font-weight:600;">${s.score?s.score+'%':'—'} · S${s.stage||'—'}</span>
+      <span style="font-size:.8rem;color:var(--muted);">KSh ${s.amountPaid||0}</span>
+    </div>`;
+  }).join('')}</div>`;
+
+  // Charts
+  setTimeout(()=>{
+    // Distribution by stage
+    const stageCounts=[0,0,0,0,0];
+    allSessions.forEach(s=>{ if(s.stage>=1&&s.stage<=5) stageCounts[s.stage-1]++; });
+    const distCtx=document.getElementById('chartDist');
+    if(distCtx){
+      if(chartDistInst) chartDistInst.destroy();
+      chartDistInst=new Chart(distCtx,{
+        type:'bar',
+        data:{ labels:['Stage 1','Stage 2','Stage 3','Stage 4','Stage 5'],
+          datasets:[{ data:stageCounts, backgroundColor:['#ef444455','#f9731655','#eab30855','#84cc1655','#10b98155'], borderColor:['#ef4444','#f97316','#eab308','#84cc16','#10b981'], borderWidth:2, borderRadius:6 }] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+          scales:{ y:{ticks:{color:'#8899bb',stepSize:1,font:{size:10}},grid:{color:'rgba(255,255,255,.05)'}}, x:{ticks:{color:'#8899bb',font:{size:10}},grid:{display:false}} } }
+      });
+    }
+    // Sessions over time (by month)
+    const byMonth={};
+    allSessions.forEach(s=>{ const m=new Date(s.date).toLocaleDateString('en-GB',{month:'short',year:'2-digit'}); byMonth[m]=(byMonth[m]||0)+1; });
+    const months=Object.keys(byMonth).slice(-8);
+    const sessCtx=document.getElementById('chartSessions');
+    if(sessCtx){
+      if(chartSessionsInst) chartSessionsInst.destroy();
+      chartSessionsInst=new Chart(sessCtx,{
+        type:'line',
+        data:{ labels:months, datasets:[{ data:months.map(m=>byMonth[m]), borderColor:'#06b6d4', backgroundColor:'rgba(6,182,212,.1)', tension:.4, fill:true, pointBackgroundColor:'#06b6d4', pointRadius:4 }] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+          scales:{ y:{ticks:{color:'#8899bb',stepSize:1,font:{size:10}},grid:{color:'rgba(255,255,255,.05)'}}, x:{ticks:{color:'#8899bb',font:{size:10}},grid:{display:false}} } }
+      });
+    }
+  },150);
+}
+
+// ═══════════════════════════════════════════════════════════
+// GAIT ANALYZER (preserved + linked to records)
+// ═══════════════════════════════════════════════════════════
+const videoInput=document.getElementById('videoInput');
+const videoEl=document.getElementById('videoEl');
+const canvasEl=document.getElementById('canvasEl');
+const ctx=canvasEl.getContext('2d');
+
+let pose=null, poseReady=false, currentFrameMetrics=[], analysisRunning=false;
+
+const CONNECTIONS=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,29],[29,31],[28,30],[30,32]];
+
+function getLandmark(lms,idx,vis=0.35){ const l=lms[idx]; return l&&l.visibility>vis?l:null; }
+function vecAngle(a,b,c){ const ab={x:a.x-b.x,y:a.y-b.y},cb={x:c.x-b.x,y:c.y-b.y}; return Math.abs(Math.atan2(Math.abs(ab.x*cb.y-ab.y*cb.x),ab.x*cb.x+ab.y*cb.y)*180/Math.PI); }
+
+function detectView(lms){
+  const lSh=getLandmark(lms,11),rSh=getLandmark(lms,12),lHip=getLandmark(lms,23),rHip=getLandmark(lms,24);
+  if(!lSh||!rSh||!lHip||!rHip) return 'front';
+  const bw=Math.max(Math.abs(lSh.x-rSh.x),Math.abs(lHip.x-rHip.x));
+  if(bw<0.12||Math.abs((lSh.z||0)-(rSh.z||0))>0.15) return 'side';
+  return bw<0.22?'angled':'front';
+}
+
+function detectCrutches(lms){
+  const lSh=getLandmark(lms,11),rSh=getLandmark(lms,12),lElb=getLandmark(lms,13),rElb=getLandmark(lms,14),lWri=getLandmark(lms,15),rWri=getLandmark(lms,16),lHip=getLandmark(lms,23),rHip=getLandmark(lms,24);
+  if(!lSh||!rSh) return{crutches:0,crutchSide:'none'};
+  const mid=(lSh.x+rSh.x)/2;
+  let L=0,R=0;
+  if(lElb&&lWri){ const stiff=vecAngle(lSh,lElb,lWri)<35; if(lElb.y>lSh.y+0.03&&stiff&&(lWri.x<mid-0.08||(lHip&&Math.abs(lWri.y-lHip.y)<0.18))) L=1; else if(lElb.y>lSh.y+0.03&&stiff&&lWri.y>lSh.y+0.25) L=0.6; }
+  if(rElb&&rWri){ const stiff=vecAngle(rSh,rElb,rWri)<35; if(rElb.y>rSh.y+0.03&&stiff&&(rWri.x>mid+0.08||(rHip&&Math.abs(rWri.y-rHip.y)<0.18))) R=1; else if(rElb.y>rSh.y+0.03&&stiff&&rWri.y>rSh.y+0.25) R=0.6; }
+  const tot=L+R;
+  if(tot>=1.5) return{crutches:2,crutchSide:'bilateral'};
+  if(L>=0.6&&R<0.4) return{crutches:1,crutchSide:'left'};
+  if(R>=0.6&&L<0.4) return{crutches:1,crutchSide:'right'};
+  if(tot>=0.8) return{crutches:1,crutchSide:'unknown'};
+  return{crutches:0,crutchSide:'none'};
+}
+
+function analyzeFrame(lms){
+  if(!lms||lms.length<33) return null;
+  const lSh=getLandmark(lms,11),rSh=getLandmark(lms,12),lHip=getLandmark(lms,23),rHip=getLandmark(lms,24),lKne=getLandmark(lms,25),rKne=getLandmark(lms,26),lAnk=getLandmark(lms,27),rAnk=getLandmark(lms,28);
+  if(!lHip||!rHip||!lSh||!rSh) return null;
+  const view=detectView(lms),{crutches,crutchSide}=detectCrutches(lms);
+  const mSh={x:(lSh.x+rSh.x)/2,y:(lSh.y+rSh.y)/2},mHip={x:(lHip.x+rHip.x)/2,y:(lHip.y+rHip.y)/2};
+  const spH=Math.abs(mSh.y-mHip.y),spX=Math.abs(mSh.x-mHip.x);
+  const trunkLeanDeg=spH>0.01?Math.atan2(spX,spH)*180/Math.PI:0;
+  let symmetry=100;
+  if(lKne&&rKne&&lAnk&&rAnk){
+    const kd=Math.abs(vecAngle(lHip,lKne,lAnk)-vecAngle(rHip,rKne,rAnk));
+    const hd=Math.abs(vecAngle(lSh,lHip,lKne)-vecAngle(rSh,rHip,rKne));
+    symmetry=Math.max(0,100-kd*1.2-hd*0.8-(view!=='side'?Math.abs(lAnk.y-rAnk.y)*60:0));
+  }
+  let hipMobility=50;
+  if(lKne&&rKne) hipMobility=Math.min(100,((vecAngle(lSh,lHip,lKne)+vecAngle(rSh,rHip,rKne))/2/25)*100);
+  let strideScore=50;
+  if(lAnk&&rAnk){ const fl=Math.min(Math.abs(lAnk.y-rAnk.y)*300,100); strideScore=fl<5?20:Math.min(100,fl); }
+  return{trunkLeanDeg,symmetry,hipMobility,strideScore,crutches,crutchSide,view};
+}
+
+function classifyStage(metrics){
+  const{symmetry,trunkLeanDeg,strideScore,hipMobility,crutches}=metrics;
+  const ls=Math.max(0,100-Math.min(100,trunkLeanDeg*3.5));
+  let comp=(symmetry*.35)+(ls*.30)+(strideScore*.20)+(hipMobility*.15);
+  const ec=crutches===2?Math.min(comp,38):crutches===1?Math.min(comp,55):comp;
+  let stage,pct,label,desc,color,suggestions;
+  if(ec<28){stage=1;pct=Math.round(10+ec*.5);color='#ef4444';label='Stage 1 — Bilateral support phase';desc=crutches>=2?'Bilateral walking aids detected. Early weight-bearing phase.':'Significant asymmetry and trunk instability detected.';suggestions=[{type:'warn',text:crutches>=2?'Bilateral crutch use detected — focus on weight-bearing tolerance.':'High trunk lean — core stabilisation exercises recommended.'},{type:'info',text:'Balance retraining and partial weight-bearing exercises are priority.'}];}
+  else if(ec<48){stage=2;pct=Math.round(25+(ec-28));color='#f97316';label='Stage 2 — Single-sided support';desc=crutches===1?'Single walking aid detected. Transitioning from bilateral support.':'Moderate asymmetry detected.';suggestions=[{type:'warn',text:crutches===1?'Single crutch detected — continue progressing to unassisted walking.':'Noticeable gait asymmetry — consider single crutch on stronger side.'},{type:'info',text:'Hip flexor and quad strengthening will improve stride symmetry.'}];}
+  else if(ec<62){stage=3;pct=Math.round(45+(ec-48)*1.2);color='#eab308';label='Stage 3 — Unassisted with compensation';desc='Walking independently but with compensation patterns.';suggestions=[{type:'warn',text:trunkLeanDeg>8?`Trunk lean ~${Math.round(trunkLeanDeg)}° — hip abductor strengthening advised.`:'Stride asymmetry — focus on step length equalisation.'},{type:'ok',text:'Independent walking achieved — a significant milestone!'}];}
+  else if(ec<80){stage=4;pct=Math.round(62+(ec-62)*1.3);color='#84cc16';label='Stage 4 — Mild asymmetry, functional gait';desc='Near-functional gait. Mild compensations remain but walking well.';suggestions=[{type:'ok',text:'Good functional recovery. Minor gait deviations remain.'},{type:'info',text:'Increase walking speed and terrain challenges for further improvement.'}];}
+  else{stage=5;pct=Math.min(100,Math.round(80+(ec-80)));color='#10b981';label='Stage 5 — Near-normal gait';desc='Gait pattern close to normal. High symmetry and stable trunk.';suggestions=[{type:'ok',text:'Excellent recovery — metrics approaching pre-injury norms.'},{type:'info',text:'Maintain strength training to prevent re-injury.'}];}
+  return{stage,pct,label,desc,color,suggestions};
+}
+
+function drawSkeleton(results){
+  ctx.clearRect(0,0,canvasEl.width,canvasEl.height);
+  if(!results.poseLandmarks) return;
+  const lms=results.poseLandmarks,w=canvasEl.width,h=canvasEl.height;
+  ctx.lineWidth=2.5;
+  CONNECTIONS.forEach(([a,b])=>{ const pa=lms[a],pb=lms[b]; if(!pa||!pb||pa.visibility<0.4||pb.visibility<0.4) return; ctx.strokeStyle='rgba(59,130,246,.9)'; ctx.beginPath(); ctx.moveTo(pa.x*w,pa.y*h); ctx.lineTo(pb.x*w,pb.y*h); ctx.stroke(); });
+  lms.forEach((l,i)=>{ if(!l||l.visibility<0.4) return; ctx.fillStyle=[11,12,23,24,25,26,27,28].includes(i)?'#06b6d4':'rgba(99,179,237,.7)'; ctx.beginPath(); ctx.arc(l.x*w,l.y*h,4,0,Math.PI*2); ctx.fill(); });
+}
+
+function updateUI(result){
+  const{stage,pct,label,desc,color,suggestions,metrics}=result;
+  document.getElementById('scoreNum').textContent=pct;
+  document.getElementById('scoreNum').style.color=color;
+  const arc=document.getElementById('scoreArc');
+  arc.style.strokeDashoffset=327-(pct/100)*327;
+  arc.style.stroke=color;
+  const badge=document.getElementById('stageBadge');
+  badge.textContent=`Stage ${stage}`;
+  badge.style.cssText=`background:${color}22;color:${color};border:1px solid ${color}44;display:inline-block;padding:3px 12px;border-radius:20px;font-size:.76rem;font-weight:600;margin-bottom:.4rem;`;
+  document.getElementById('stageLabel').textContent=label;
+  document.getElementById('stageDesc').textContent=desc;
+  document.getElementById('mSymmetry').textContent=Math.round(metrics.symmetry)+'%';
+  document.getElementById('bSymmetry').style.width=Math.round(metrics.symmetry)+'%';
+  document.getElementById('mLean').textContent=metrics.trunkLeanDeg.toFixed(1)+'°';
+  document.getElementById('bLean').style.width=Math.round(Math.max(0,100-metrics.trunkLeanDeg*6))+'%';
+  document.getElementById('mStride').textContent=Math.round(metrics.strideScore)+'%';
+  document.getElementById('bStride').style.width=Math.round(metrics.strideScore)+'%';
+  document.getElementById('mHip').textContent=Math.round(metrics.hipMobility)+'%';
+  document.getElementById('bHip').style.width=Math.round(metrics.hipMobility)+'%';
+  document.getElementById('suggestionList').innerHTML=suggestions.map(s=>`<li><span class="sug-icon ${s.type}">${s.type==='ok'?'✓':s.type==='warn'?'!':'i'}</span>${s.text}</li>`).join('');
+  document.querySelectorAll('.stage-row').forEach(r=>r.classList.toggle('active',parseInt(r.dataset.stage)===stage));
+  // Store for saving
+  lastAnalysisResult={...result,metrics};
+  document.getElementById('saveBanner').classList.add('visible');
+}
+
+function averageMetrics(frames){
+  const valid=frames.filter(f=>f!==null); if(!valid.length) return null;
+  const n=valid.length, sum={symmetry:0,trunkLeanDeg:0,strideScore:0,hipMobility:0,crutches:0}, vc={};
+  valid.forEach(f=>{ sum.symmetry+=f.symmetry; sum.trunkLeanDeg+=f.trunkLeanDeg; sum.strideScore+=f.strideScore; sum.hipMobility+=f.hipMobility; sum.crutches+=f.crutches; vc[f.view]=(vc[f.view]||0)+1; });
+  const ac=sum.crutches/n;
+  return{ symmetry:sum.symmetry/n, trunkLeanDeg:sum.trunkLeanDeg/n, strideScore:sum.strideScore/n, hipMobility:sum.hipMobility/n, crutches:ac>1.3?2:ac>0.4?1:0, view:Object.entries(vc).sort((a,b)=>b[1]-a[1])[0]?.[0]||'front' };
+}
+
+async function loadPose(){
+  if(poseReady) return;
+  document.getElementById('analyzeStep').textContent='Loading pose model…';
+  pose=new Pose({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
+  pose.setOptions({modelComplexity:0,smoothLandmarks:true,minDetectionConfidence:.5,minTrackingConfidence:.5});
+  pose.onResults(r=>{ if(!r.poseLandmarks) return; drawSkeleton(r); const m=analyzeFrame(r.poseLandmarks); if(m) currentFrameMetrics.push(m); });
+  await pose.initialize(); poseReady=true;
+}
+
+async function processVideoFrames(){
+  if(analysisRunning) return;
+  analysisRunning=true;
+  document.getElementById('analyzingOverlay').classList.add('visible');
+  document.getElementById('statusDot').classList.add('active');
+  document.getElementById('analyzeBtn').disabled=true;
+  document.getElementById('playBtn').disabled=true;
+  try{
+    await loadPose();
+    document.getElementById('analyzeStep').textContent='Extracting pose from frames…';
+    videoEl.currentTime=0;
+    await new Promise(r=>videoEl.addEventListener('seeked',r,{once:true}));
+    const dur=videoEl.duration, tf=Math.min(45,Math.max(15,Math.floor(dur*3))), se=dur/tf;
+    let t=0, proc=0; currentFrameMetrics=[];
+    while(t<dur+0.01){
+      videoEl.currentTime=Math.min(t,dur);
+      await Promise.race([new Promise(r=>videoEl.addEventListener('seeked',r,{once:true})),new Promise(r=>setTimeout(r,1200))]);
+      canvasEl.width=videoEl.videoWidth; canvasEl.height=videoEl.videoHeight;
+      ctx.drawImage(videoEl,0,0);
+      try{ await pose.send({image:canvasEl}); }catch(e){}
+      proc++; t+=se;
+      document.getElementById('frameCount').textContent=`${proc}/${tf}`;
+      document.getElementById('analyzeStep').textContent=`Frame ${proc} of ${tf}…`;
+      await new Promise(r=>setTimeout(r,10));
+    }
+    document.getElementById('analyzeStep').textContent='Computing score…';
+    await new Promise(r=>setTimeout(r,400));
+    const fm=averageMetrics(currentFrameMetrics);
+    if(fm){ const res=classifyStage(fm); res.metrics=fm; updateUI(res); }
+  }catch(err){ console.error(err); document.getElementById('analyzeStep').textContent='Error. Try again.'; }
+  finally{
+    document.getElementById('analyzingOverlay').classList.remove('visible');
+    analysisRunning=false;
+    document.getElementById('analyzeBtn').disabled=false;
+    document.getElementById('playBtn').disabled=false;
+    document.getElementById('analyzeBtn').textContent='▶ Re-analyse';
+    videoEl.currentTime=0; videoEl.play().catch(()=>{});
+    document.getElementById('playBtn').textContent='⏸ Pause';
+  }
+}
+
+videoInput.addEventListener('change',e=>{
+  const file=e.target.files[0]; if(!file) return;
+  videoEl.src=URL.createObjectURL(file);
+  videoEl.style.display='block'; canvasEl.style.display='block';
+  document.getElementById('videoPlaceholder').style.display='none';
+  document.getElementById('uploadZone').style.display='none';
+  document.getElementById('analysisGrid').style.display='grid';
+  document.getElementById('analyzeBtn').disabled=false;
+});
+
+document.getElementById('analyzeBtn').addEventListener('click',processVideoFrames);
+document.getElementById('playBtn').addEventListener('click',()=>{ if(videoEl.paused){videoEl.play();document.getElementById('playBtn').textContent='⏸ Pause';}else{videoEl.pause();document.getElementById('playBtn').textContent='▶ Play';} });
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  videoEl.pause(); videoEl.src=''; videoEl.style.display='none'; canvasEl.style.display='none';
+  document.getElementById('videoPlaceholder').style.display='flex';
+  document.getElementById('uploadZone').style.display='block';
+  document.getElementById('analysisGrid').style.display='none';
+  document.getElementById('analyzeBtn').disabled=true; document.getElementById('playBtn').disabled=true;
+  document.getElementById('frameCount').textContent='—'; document.getElementById('statusDot').classList.remove('active');
+  document.getElementById('saveBanner').classList.remove('visible');
+  document.getElementById('scoreNum').textContent='—'; document.getElementById('scoreArc').style.strokeDashoffset='327';
+  document.getElementById('stageLabel').textContent='Upload a video to begin';
+  document.getElementById('stageDesc').textContent='The AI will detect pose landmarks and classify your gait pattern.';
+  document.getElementById('stageBadge').textContent='Awaiting analysis'; document.getElementById('stageBadge').style.cssText='';
+  document.getElementById('suggestionList').innerHTML='<li><span class="sug-icon info">i</span>Waiting for video analysis.</li>';
+  document.querySelectorAll('.stage-row').forEach(r=>r.classList.remove('active'));
+  currentFrameMetrics=[]; lastAnalysisResult=null;
+});
+
+document.getElementById('uploadZone').addEventListener('dragover',e=>{e.preventDefault();document.getElementById('uploadZone').classList.add('drag-over');});
+document.getElementById('uploadZone').addEventListener('dragleave',()=>document.getElementById('uploadZone').classList.remove('drag-over'));
+document.getElementById('uploadZone').addEventListener('drop',e=>{
+  e.preventDefault(); document.getElementById('uploadZone').classList.remove('drag-over');
+  const file=e.dataTransfer.files[0]; if(file&&file.type.startsWith('video/')){const dt=new DataTransfer();dt.items.add(file);videoInput.files=dt.files;videoInput.dispatchEvent(new Event('change'));}
+});
+videoEl.addEventListener('ended',()=>{videoEl.currentTime=0;});
+
+// Init
+updateStats();
+renderPatientList();
+</script>
+</body>
+</html>
